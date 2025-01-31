@@ -5,19 +5,19 @@ import cv2
 
 def image_processing():
     img = cv2.imread('img_test.jpg')
-    #cv2.imshow('image', img)
+    cv2.imshow('image', img)
     w, h = img.shape[:2]
-    #(cX, cY) = (w // 2, h // 2)
-    #M = cv2.getRotationMatrix2D((cX, cY), 45, 1.0)
-    #rotated = cv2.warpAffine(img, M, (w, h))
-    #cv2.imshow('rotated', rotated)
+    (cX, cY) = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D((cX, cY), 45, 1.0)
+    rotated = cv2.warpAffine(img, M, (w, h))
+    cv2.imshow('rotated', rotated)
 
-    #cat = img[250:580, 20:280]
-    #cv2.imshow('image', cat)
+    cat = img[250:580, 20:280]
+    cv2.imshow('image', cat)
 
-    #r = cv2.selectROI(img)
-    #image_cropped = img[int(r[1]):int(r[1] + r[3]), int(r[0]):int(r[0] + r[2])]
-    #cv2.imshow('cropped', image_cropped)
+    r = cv2.selectROI(img)
+    image_cropped = img[int(r[1]):int(r[1] + r[3]), int(r[0]):int(r[0] + r[2])]
+    cv2.imshow('cropped', image_cropped)
 
     cv2.line(img, (0, 0), (580, 600), (255, 0, 0), 5)
     cv2.rectangle(img, (384, 10), (580, 128), (0, 252, 0), 3)
