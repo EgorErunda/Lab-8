@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 def image_processing():
     img = cv2.imread('images/variant-1.jpg')
@@ -26,14 +27,20 @@ def image_processing():
 
         print(f"Координаты метки: ({x}, {y})")
 
-        text_x = 10
-        text_y = 30
-        cv2.putText(resized_gray, f"Координаты метки: ({x}, {y})", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
         resized_img = cv2.resize(img, new_size)
         cv2.rectangle(resized_img, (x, y), (x + w, y + h), (0, 0, 255), 2)
-
         cv2.drawContours(resized_img, [largest_contour], -1, (0, 255, 0), 2)
+
+        fly_img = cv2.imread('fly64.png', cv2.IMREAD_UNCHANGED)
+        fly_height, fly_width, _ = fly_img.shape
+        fly_center_x = x + w // 2
+        fly_center_y = y + h // 2
+        fly_x = fly_center_x - fly_width // 2
+        fly_y = fly_center_y - fly_height // 2
+        roi = resized_img[fly_y:fly_y+fly_height, fly_x:fly_x+fly_width]
+        roi_bg = cv2.bitwise_and(roi, roi, mask=cv2.bitwise_not(fly_img[:, :, 3]))
+        roi_fg = cv2.bitwise_and(fly_img[:, :, 0:3], fly_img[:, :, 0:3], mask=fly_img[:, :, 3])
+        resized_img[fly_y:fly_y+fly_height, fly_x:fly_x+fly_width] = cv2.add(roi_bg, roi_fg)
 
         cv2.imshow('Изображение с меткой', resized_img)
         cv2.imshow('Grayscale Image', resized_gray)
