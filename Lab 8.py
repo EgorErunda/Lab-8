@@ -36,6 +36,7 @@ def image_processing():
         cv2.drawContours(resized_img, [largest_contour], -1, (0, 255, 0), 2)
 
         cv2.imshow('Изображение с меткой', resized_img)
+        cv2.imshow('Grayscale Image', resized_gray)
 
 if __name__ == '__main__':
     image_processing()
