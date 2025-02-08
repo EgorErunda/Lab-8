@@ -1,52 +1,86 @@
+import time
 import cv2
 import numpy as np
 
-def image_processing():
-    img = cv2.imread('images/variant-1.jpg')
-    if img is None:
-        print("Ошибка загрузки изображения.")
+def video_processing():
+    cap = cv2.VideoCapture(0)
+    down_points = (640, 480)
+
+    ref_image = cv2.imread('ref-point.jpg', cv2.IMREAD_GRAYSCALE)
+    fly_image = cv2.imread('fly64.png', cv2.IMREAD_UNCHANGED)
+    variant_image = cv2.imread('variant-1.jpg', cv2.IMREAD_GRAYSCALE)
+
+    if ref_image is None:
+        print("Ошибка загрузки изображения метки.")
+        return
+    if fly_image is None:
+        print("Ошибка загрузки изображения мухи.")
+        return
+    if variant_image is None:
+        print("Ошибка загрузки изображения variant-1.jpg.")
         return
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    variant_image_resized = cv2.resize(variant_image, (720, 540), interpolation=cv2.INTER_LINEAR)
 
-    max_width = 1200
-    max_height = 1000
-    height, width = img.shape[:2]
-    scale_width = max_width / width
-    scale_height = max_height / height
-    scale = min(scale_width, scale_height)
-    new_size = (int(width * scale), int(height * scale))
-    resized_gray = cv2.resize(gray, new_size)
+    template_h, template_w = ref_image.shape[:2]
+    fly_h, fly_w = fly_image.shape[:2]
 
-    ret, thresh = cv2.threshold(resized_gray, 150, 255, cv2.THRESH_BINARY)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            print("Ошибка захвата изображения.")
+            break
 
-    if contours:
-        largest_contour = max(contours, key=cv2.contourArea)
-        x, y, w, h = cv2.boundingRect(largest_contour)
+        frame_resized = cv2.resize(frame, down_points, interpolation=cv2.INTER_LINEAR)
+        gray_frame = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
 
-        print(f"Координаты метки: ({x}, {y})")
+        found = None
+        for scale in np.linspace(0.2, 1.0, 20)[::-1]:
+            resized = cv2.resize(gray_frame, (int(gray_frame.shape[1] * scale), int(gray_frame.shape[0] * scale)))
+            r = gray_frame.shape[1] / float(resized.shape[1])
+            if resized.shape[0] < template_h or resized.shape[1] < template_w:
+                break
+            result = cv2.matchTemplate(resized, ref_image, cv2.TM_CCOEFF_NORMED)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
-        resized_img = cv2.resize(img, new_size)
-        cv2.rectangle(resized_img, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        cv2.drawContours(resized_img, [largest_contour], -1, (0, 255, 0), 2)
+            if found is None or max_val > found[0]:
+                found = (max_val, max_loc, r)
 
-        fly_img = cv2.imread('fly64.png', cv2.IMREAD_UNCHANGED)
-        fly_height, fly_width, _ = fly_img.shape
-        fly_center_x = x + w // 2
-        fly_center_y = y + h // 2
-        fly_x = fly_center_x - fly_width // 2
-        fly_y = fly_center_y - fly_height // 2
-        roi = resized_img[fly_y:fly_y+fly_height, fly_x:fly_x+fly_width]
-        roi_bg = cv2.bitwise_and(roi, roi, mask=cv2.bitwise_not(fly_img[:, :, 3]))
-        roi_fg = cv2.bitwise_and(fly_img[:, :, 0:3], fly_img[:, :, 0:3], mask=fly_img[:, :, 3])
-        resized_img[fly_y:fly_y+fly_height, fly_x:fly_x+fly_width] = cv2.add(roi_bg, roi_fg)
+        if found and found[0] > 0.6:
+            _, max_loc, r = found
+            top_left = (int(max_loc[0] * r), int(max_loc[1] * r))
+            bottom_right = (int((max_loc[0] + template_w) * r), int((max_loc[1] + template_h) * r))
+            cv2.rectangle(frame_resized, top_left, bottom_right, (0, 255, 0), 2)
 
-        cv2.imshow('Изображение с меткой', resized_img)
-        cv2.imshow('Grayscale Image', resized_gray)
+            center_x = (top_left[0] + bottom_right[0]) // 2
+            center_y = (top_left[1] + bottom_right[1]) // 2
+
+            coordinates_text = f"({center_x}, {center_y})"
+            print(coordinates_text)
+
+            fly_center_x = center_x - fly_w // 2
+            fly_center_y = center_y - fly_h // 2
+
+            for i in range(fly_h):
+                for j in range(fly_w):
+                    if fly_image[i, j, 3] > 0: 
+                        frame_resized[fly_center_y + i, fly_center_x + j] = fly_image[i, j, :3]
+
+            cv2.putText(frame_resized, coordinates_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        else:
+            print("Метка не обнаружена")
+            cv2.putText(frame_resized, "Метка не обнаружена", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.imshow('Frame', frame_resized)
+        cv2.imshow('Variant Image', variant_image_resized)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+        time.sleep(0.05)
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    image_processing()
-
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    video_processing()
