@@ -81,6 +81,6 @@ def video_processing():
 
     cap.release()
     cv2.destroyAllWindows()
-
+#main func
 if __name__ == '__main__':
     video_processing()
