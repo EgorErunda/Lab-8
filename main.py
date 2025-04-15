@@ -62,7 +62,6 @@ def video_processing():
 
 
 if __name__ == '__main__':
-    #image_processing()
     video_processing()
 
 cv2.waitKey(0)
